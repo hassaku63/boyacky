@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ECS Handson
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      InstanceTenancy: default
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: boyacky-vpc
+  PublicSub1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Select
+        - '0'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-public-subnet-1
+  PublicSub2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select
+        - '1'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-public-subnet-2
+  PrivateSub1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select
+        - '0'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-private-subnet-1
+  PrivateSub2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select
+        - '1'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-private-subnet-2
+  IGW:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: boyacky-igw
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+  PublicRouteTbl:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-public-rtb
+  PrivateRouteTbl:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: boyacky-private-rtb
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PublicRouteTbl
+      GatewayId: !Ref IGW
+    DependsOn: VPCGatewayAttachment
+  PublicSubRoute1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTbl
+      SubnetId: !Ref PublicSub1
+  PublicSubRoute2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTbl
+      SubnetId: !Ref PublicSub2
+  PrivateSubRoute1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTbl
+      SubnetId: !Ref PrivateSub1
+  PrivateSubRoute2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTbl
+      SubnetId: !Ref PrivateSub2
+  LBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: boyacky_lb_sg
+      GroupName: boyacky_lb_sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: boyacky-lb-sg
+  WebSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: boyacky_web_sg
+      GroupName: boyacky_web_sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '8080'
+          ToPort: '8080'
+          SourceSecurityGroupId: !Ref LBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: boyacky-web-sg
+  EPSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: boyacky_ep_sg
+      GroupName: boyacky_ep_sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: boyacky-ep-sg
+  ALB:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      LoadBalancerAttributes:
+        - Key: access_logs.s3.enabled
+          Value: 'false'
+        - Key: deletion_protection.enabled
+          Value: 'false'
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Name: boyacky-alb
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LBSecurityGroup
+      Subnets:
+        - !Ref PublicSub1
+        - !Ref PublicSub2
+      Tags:
+        - Key: Name
+          Value: boyacky-alb
+  S3Endpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - !Ref PrivateRouteTbl
+  VPCEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - !Ref PrivateRouteTbl
+  ECREndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      SubnetIds:
+        - !Ref PrivateSub1
+        - !Ref PrivateSub2
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref EPSecurityGroup
+  LogsEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      SubnetIds:
+        - !Ref PrivateSub1
+        - !Ref PrivateSub2
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref EPSecurityGroup
+  BoyackyTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: boyacky
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+        - AttributeName: time
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: view_index
+          KeySchema:
+            - AttributeName: date
+              KeyType: HASH
+            - AttributeName: time
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+  Cloud9Env:
+    Type: 'AWS::Cloud9::EnvironmentEC2'
+    Properties:
+      Name: ECS Handson
+      InstanceType: t3.micro
+      SubnetId: !Ref PublicSub1

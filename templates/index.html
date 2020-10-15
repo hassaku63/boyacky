@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+  <div class="jumbotron">
+    <h1><img src="static/boyacky.png" /> Boyacky</h1>
+
+    <p>今日もどこかでボヤかせていただきます</p>
+    <form action="/create" method="POST">
+      <div class="input-group">
+        <input type="text" name="boyaki" class="form-control" placeholder="いまボヤいてる？">
+        <span class="input-group-btn">
+          <button class="btn btn-primary" type="submit">ボヤく</button>
+        </span>
+      </div>
+    </form>
+  </div>
+  <table id="main-table" class="table table-hover">
+    <thead>
+      <tr>
+        <th>時間</th>
+        <th>今日のボヤキ</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.time }}</td>
+        <td>{{ item.boyaki }}</td>
+        <td>
+          <a href="/delete/{{ item.id }}" class="btn btn-danger btn-sm">浄化</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  $(function () {
+    $('#main-table').DataTable({
+      "language": {
+        "url": "//cdn.datatables.net/plug-ins/1.10.16/i18n/Japanese.json"
+      }
+    });
+  });
+</script>
+{% endblock %}
