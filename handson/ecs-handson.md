@@ -519,7 +519,7 @@ Login Succeeded
 そのため、作成済みのイメージにタグを付けてエイリアスを作成します。
 
 ```
-$ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app
+$ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest
 ```
 
 > docker tag 元イメージ名[:タグ] 新イメージ名[:タグ]
@@ -533,7 +533,7 @@ $ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaw
 最後にイメージをECRへ登録します。
 
 ```
-$ docker push xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app
+$ docker push xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest
 ```
 
 ECR側のリポジトリURIと一致しない場合、リクエストは拒否されて下記のメッセージが表示されます。
@@ -709,7 +709,7 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
     * コンテナ名
         * `boyacky-web-app`
     * イメージ
-        * `xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app`
+        * `xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest`
         * 4.1でコピーしたリポジトリURIをペースト
         * latestタグの場合は省略可能
     * ポートマッピング
