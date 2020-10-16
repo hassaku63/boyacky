@@ -270,9 +270,7 @@ FROM python:alpine
 WORKDIR /boyacky
 COPY . /boyacky
 
-RUN pip install flask==1.1.2
-RUN pip install boto3==1.15.8
-RUN pip install pynamodb==4.3.3
+RUN pip install -r requirements.txt
 
 EXPOSE 8080
 
