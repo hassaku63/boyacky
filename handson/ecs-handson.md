@@ -59,8 +59,8 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
 * CloudWatch Log Group
     * コンテナのログ出力先
 * IAM ロール
-* ECS / ECR との通信
-    * NAT ゲートウェイ or PrivateLink
+* ECS / ECR コントロールプレーンとの通信
+    * NAT ゲートウェイ or PrivateLink ( Private サブネットにデプロイする場合)
 
 ### 1.1 CloudFormation スタックの作成
 今回は時間の都合上、CloudFormation（以下、CF）を利用して関連リソースの構築を自動で行います。構築する AWS リソースは下図になります。
