@@ -702,6 +702,8 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
 * コンテナの定義
     * [コンテナの追加]ボタンを押下
 
+注意: 指定できる値の組み合わせには制限があり、任意の値は指定できません - 参考: [Amazon ECS Developer Guide - 指定された CPU またはメモリの値が無効](https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/task-cpu-memory-error.html)
+
 ##### コンテナの追加
 [コンテナの追加]用のポップアップウインドウが表示されます。
 
