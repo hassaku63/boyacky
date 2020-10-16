@@ -1,18 +1,17 @@
-# コンテナを身体で覚える - Day1: ハンズオン
+# コンテナを筋肉で覚える - Day1: サービスの立ち上げ
 
 1. 関連リソースの構築
-2. Web アプリケーションの動作確認 (Cloud9)
+2. Boyacky の動作確認
 3. Docker イメージの作成
 4. Docker イメージを ECR に登録
 5. AWS 上のコンテナ実行環境
 6. ECS クラスターの作成
 7. タスク定義の作成
-8. サービスの作成
-9. Web アプリケーションの動作確認 (Fargate)
-10. Web アプリケーションの修正
+8. Boyacky のサービスイン
+9. 不具合の修正と反映
 
 ## はじめに
-ハンズオンでは Amazon ECS（以下、ECS）を使って、コンテナ用のサーバーレスコンピューティング環境である AWS Fargate 上に Web アプリケーション、`Boyacky`(ボヤッキー) をデプロイします。
+Amazon ECS（以下、ECS）を使って、コンテナ用のサーバーレスコンピューティング環境である AWS Fargate 上に Web アプリケーション、`Boyacky`(ボヤッキー) をデプロイします。
 
 以下は全体のシステム構成図です。
 
@@ -60,14 +59,14 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
     * コンテナのログ出力先
 * IAM ロール
 * ECS コントロールプレーン / ECR との通信
-    * NAT ゲートウェイ or PrivateLink ( Private サブネットにデプロイする場合)
+    * NAT ゲートウェイ or PrivateLink (Private サブネットにデプロイする場合)
 
 ### 1.1 CloudFormation スタックの作成
 今回は時間の都合上、CloudFormation（以下、CF）を利用して関連リソースの構築を自動で行います。構築する AWS リソースは下図になります。
 
 ![](images/boyacky-cf.png)
 
-ハンズオンは東京リージョン (ap-northeast-1) で進めますが、別リージョンでも構いません。その場合は適宜読み替えてください。
+東京リージョン (ap-northeast-1) で進めますが、別リージョンでも構いません。その場合は適宜読み替えてください。
 
 1. CF テンプレート [boyacky.yam](https://github.com/hassaku63/boyacky/blob/master/handson/boyacky.yaml) のダウンロード
 2. [CloudFormation コンソール](https://ap-northeast-1.console.aws.amazon.com/cloudformation)から CF テンプレートファイルのアップロード
@@ -79,8 +78,8 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
     * 作成されたリソースを確認してください。
         * 後で利用するため、作成した`VPC ID`をメモします。
 
-### 1.2 Cloud9環境の起動
-ハンズオンでは作業環境を統一するため Cloud9 を利用します。
+### 1.2 Cloud9 環境の起動
+作業環境を統一するため Cloud9 を利用します。
 [Cloud9 コンソール](https://ap-northeast-1.console.aws.amazon.com/cloud9/home)から `ECS Handson` 環境を選択して、[Open IDE] ボタンを押下します。
 
 下図は Cloud9 を利用して SSH 経由で EC2 環境に接続するイメージです。
@@ -99,7 +98,7 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
 
 ![](images/cloud9-you-icon.png)
 
-## 2. Web アプリケーションの動作確認 (Cloud9)
+## 2. Boyacky の動作確認
 まずは Cloud9 上で Boyacky の動作確認を行い正しく動くことを確認します。  
 
 ### 2.1 コードのダウンロード
@@ -165,7 +164,7 @@ Cloud9 では Docker クライアントとデーモンがインストールさ�
 |----|----|
 | イメージ | Docker コンテナを構成するファイルシステムやメタ情報の集合体。<br>イメージは iso ファイルのように1ファイルで構成されているわけではなく、親子関係を持つ複数のレイヤーによって構成されています。 |
 | コンテナ | イメージを元に作成される仮想環境の実行部分。イメージとコンテナは 1:N の関係です。 |
-| レジストリ | イメージをホスティング、バージョン管理、配布するリポジトリ。<br>Docker レジストリは、Public/Private に対応した[Docker Hub](https://hub.docker.com)やPrivate用の[Amazon ECR](https://aws.amazon.com/ecr)などがあります。 |
+| レジストリ | イメージをホスティング、バージョン管理、配布するリポジトリ。<br>Docker レジストリは、Public/Private に対応した[Docker Hub](https://hub.docker.com)や Private 用の[Amazon ECR](https://aws.amazon.com/ecr)などがあります。 |
 
 コンポーネント間の関係とライフサイクルも抑えておきます。
 
@@ -185,7 +184,7 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
     2. `container rm`コマンドでコンテナを削除する
 
 #### Docker コマンド
-コマンドの数が増えたことにより、2017年にDockerコマンドの命令体系が再編成されました。
+コマンドの数が増えたことにより、2017 年に Docker コマンドの命令体系が再編成されました。
 現在では、サブコマンド(image, container)を利用した新コマンドが推奨されています。
 
 例えば、イメージの一覧表示とコンテナの一覧表示はそれぞれ
@@ -206,9 +205,9 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 |----|----|----|
 | build | | Dockerfile からイメージを構築 |
 | history | | イメージの履歴を表示 |
-| import | | tar形式のファイルを読み込み、イメージを作成 |
+| import | | tar 形式のファイルを読み込み、イメージを作成 |
 | inspect | | イメージの詳細情報を表示 |
-| load | | tar形式または標準入力からイメージを読み込む |
+| load | | tar 形式または標準入力からイメージを読み込む |
 | ls	| images | イメージの一覧表示 |
 | prune | - | 使用していないイメージを削除 |
 | pull | | イメージをレジストリから取得 |
@@ -227,12 +226,12 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 | create | | 新しいコンテナの作成 |
 | diff | | イメージとコンテナの変更情報を調べる |
 | exec | | 実行中のコンテナ内でコマンド実行 |
-| export | | コンテナのファイルシステムをtarアーカイブ化 |
+| export | | コンテナのファイルシステムを tar アーカイブ化 |
 | inspect | | コンテナの詳細情報を表示 |
-| kill | | コンテナのプロセスを停止(kill) |
+| kill | | コンテナのプロセスを停止 (kill) |
 | logs | | コンテナのログを表示 |
 | ls | ps | コンテナ一覧の表示 |
-| pause | | コンテナのプロセスを一時停止(pause) |
+| pause | | コンテナのプロセスを一時停止 (pause) |
 | port | | コンテナが使用しているポート情報の表示 |
 | prune | - | 停止中の全コンテナを削除 |
 | rename | | コンテナの名称を変更 |
@@ -432,7 +431,7 @@ $ docker container run -d -p 8080:8080 -t boyacky/web-app
 docker: Error response from daemon: driver failed programming external connectivity on endpoint modest_lumiere (略): Bind for 0.0.0.0:8080 failed: port is already allocated.
 ```
 
-既にホスト側のポート8080を使用しているためエラーになります。ホスト側のポート番号を 8081 にしてコンテナを実行します。
+既にホスト側のポート 8080 を使用しているためエラーになります。ホスト側のポート番号を 8081 にしてコンテナを実行します。
 
 ```
 $ docker container run -d -p 8081:8080 -t boyacky/web-app
@@ -445,11 +444,11 @@ $ docker container run -d -p 8081:8080 -t boyacky/web-app
     * 新しく実行したコンテナのシェルを起動して不要なファイルがないか確認してください。
 
 
-## 4. イメージをECRに登録
+## 4. イメージを ECR に登録
 ECR 上にリポジトリを作成して、作成したイメージを登録します。
 
-### 4.1 Amazon ECRにリポジトリを作成
-[ECRコンソール](https://ap-northeast-1.console.aws.amazon.com/ecr)から[Repositories] を選択し、[リポジトリを作成] ボタンを押下します。
+### 4.1 Amazon ECR にリポジトリを作成
+[ECR コンソール](https://ap-northeast-1.console.aws.amazon.com/ecr)から[Repositories] を選択し、[リポジトリを作成] ボタンを押下します。
 
 * リポジトリのアクセスとタグ
     * リポジトリ名
@@ -457,7 +456,7 @@ ECR 上にリポジトリを作成して、作成したイメージを登録し�
     * タグのイミュータビリティ
         * 無効
 
-リポジトリ名には名前空間(/)を含めることができます。プロジェクトに複数のリポジトリがある場合などに利用します。
+リポジトリ名には名前空間 (/) を含めることができます。プロジェクトに複数のリポジトリがある場合などに利用します。
 
 * 例
     * project/web-app
@@ -473,7 +472,7 @@ ECR 上にリポジトリを作成して、作成したイメージを登録し�
 
 画面右下の[リポジトリを作成]ボタンを押下します。
 
-![ECRリポジトリURI](images/ecr-repository-uri.png)
+![ECR リポジトリ URI](images/ecr-repository-uri.png)
 
 作成したリポジトリ URI は、この後のタスク定義で利用します。コピーして控えてください。
 
@@ -489,7 +488,7 @@ Docker クライアントはデフォルトで Docker Hub レジストリのみ�
 
 #### 1. 認証トークンを取得してレジストリに対して Docker クライアントを認証
 
-コマンド右側の[コピー]ボタンを押下してクリップボードにコピーして、Cloud9 上のシェルにペーストして実行します。
+コマンド右側の [コピー] ボタンを押下してクリップボードにコピーして、Cloud9 上のシェルにペーストして実行します。
 
 ```
 $ aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com
@@ -512,9 +511,9 @@ Login Succeeded
     * boyacky/web-app:latest
 
 #### 3. イメージにタグを付け
-**【重要】DockerイメージをECRへ登録する場合、クライアント側のイメージ名はECR側のリポジトリURIと一致する必要があります。**
+**【重要】Docker イメージを ECR へ登録する場合、クライアント側のイメージ名は ECR 側のリポジトリ URI と一致する必要があります。**
 
-![ECRリポジトリURI](images/ecr-repository-uri.png)
+![ECR リポジトリ URI](images/ecr-repository-uri.png)
 
 そのため、作成済みのイメージにタグを付けてエイリアスを作成します。
 
@@ -527,21 +526,21 @@ $ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaw
 * 【課題】
     * ターミナルから現在のイメージ一覧を確認してください。
         * タグ付けしたイメージがあることを確認します。
-        * `boyacky/web-app:latest`とイメージIDが同じことを確認します。
+        * `boyacky/web-app:latest`とイメージ ID が同じことを確認します。
 
 #### 4. イメージを登録
-最後にイメージをECRへ登録します。
+最後にイメージを ECR へ登録します。
 
 ```
 $ docker push xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest
 ```
 
-ECR側のリポジトリURIと一致しない場合、リクエストは拒否されて下記のメッセージが表示されます。
+ECR 側のリポジトリ URI と一致しない場合、リクエストは拒否されて下記のメッセージが表示されます。
 
 > denied: requested access to the resource is denied
 
 * 【課題】
-    * ECRコンソールで登録したイメージがあるか確認してください。
+    * ECR コンソールで登録したイメージがあるか確認してください。
 
 
 ## 5. AWS 上のコンテナ実行環境
@@ -594,7 +593,7 @@ Fargate を利用した場合、コンテナを実行するための EC2 イン�
 
 コントロールプレーンとデータプレーンの組み合わせは4通りあります。
 要件により組み合わせを決定しますが、まずは ECS/Fargate を検討してください。
-ハンズオンでは ECS/Fargate を利用します。
+今回は ECS/Fargate を利用します。
 
 
 ## 6. ECS クラスターの作成
@@ -602,7 +601,7 @@ ECS クラスターを作成する前に、ECSの全体像と構築手順を把�
 
 ![ECSの全体像](images/ecs-objects.png)
 
-ECSの主要な構成要素
+ECS の主要な構成要素
 
 * タスク
     * タスク定義から起動される
@@ -611,10 +610,10 @@ ECSの主要な構成要素
     * バッチのような1回実行で利用
 * サービス
     * タスクを実行してタスクの数を希望数に保つ
-    * ALBと連携可能
+    * ALB と連携可能
     * Web アプリケーションのようなサービスで利用
 * コンテナインスタンス
-    * タスクが実際に起動するコンテナ実行環境としてのEC2インスタンス
+    * タスクが実際に起動するコンテナ実行環境としての EC2 インスタンス
     * Fargate の場合は管理不要
 * クラスター
     * タスクやサービスを実行する論理的なグループ
@@ -668,7 +667,7 @@ ECS でコンテナを実行するには、タスク定義が必要です。
     * 
 
 ### 7.2 タスク定義の作成
-ECSコンソールから[タスク定義]を選択し、[新しいタスク定義の作成]ボタンを押下します。
+ECS コンソールから[タスク定義]を選択し、[新しいタスク定義の作成]ボタンを押下します。
 
 #### ステップ 1: 起動タイプの互換性の選択
 `FARGATE`を選択して [次のステップ] ボタンを押下します。
@@ -712,21 +711,22 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
         * `boyacky-web-app`
     * イメージ
         * `xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest`
-        * 4.1でコピーしたリポジトリURIをペースト
-        * latestタグの場合は省略可能
+        * 4.1 でコピーしたリポジトリ URI をペースト
+        * latest タグの場合は省略可能
     * ポートマッピング
         * `8080`
 
-ポップアップウインドウ最下部の[追加]ボタンを押下します。
+ポップアップウインドウ最下部の [追加] ボタンを押下します。
 
 ポップアップウインドウが閉じて、タスク定義画面のコンテナの定義に追加されます。
 
-画面最下部の[作成]ボタンを押下します。
+画面最下部の [作成] ボタンを押下します。
 
-[タスク定義の表示]ボタンを押下して、タスク定義の詳細画面を表示します。
+[タスク定義の表示] ボタンを押下して、タスク定義の詳細画面を表示します。
 
 
-## 8. サービスの作成
+## 8. Boyacky のサービスイン
+いよいよ Boyacky のサービスインが迫ってきました。サービスを作成して、インターネットに公開します。
 
 ### 8.1 サービスの作成
 [アクション]ボタンから[サービスの作成]を選択します。
@@ -735,16 +735,16 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
     * 起動タイプ
         * `FARGATE`
     *  サービス名
-        * `boyacky-web-service`
+        * `boyacky-service`
     * タスクの数
         * `1`
     * [次のステップ]ボタンを押下
 * ステップ2: ネットワーク構成
     * VPC とセキュリティグループ
-        * クラスターVPC
-            * 1.1で作成したVPCを選択
+        * クラスター VPC
+            * 1.1で作成した VPC を選択
         * サブネット
-            * 1.1で作成したPrivateサブネットを2つ選択
+            * 1.1で作成した Private サブネットを2つ選択
         * セキュリティグループ
             * 1.1で作成した`boyacky_web_sg`
         * パブリック IP の自動割り当て
@@ -778,35 +778,79 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
 * ステップ4: 確認
     * [サービスの作成]ボタンを押下
 
+### 8.2 Boyacky の動作確認
+作成した ALB へ HTTP アクセスして Boyacky が表示されるか確認してください。
 
-## 9. Web アプリケーションの動作確認 (Fargate)
-作成したALBへHTTPアクセスしてBoyackyが表示されるか確認してください。
-
-> http:// + ALBのDNS名
+> http:// + ALB の DNS 名
 
 * 【課題】
     * ボヤいて一覧に表示されることを確認してください。
     * [浄化]ボタンを押下してボヤキが削除されることを確認してください。
 
 
-## 10. Web アプリケーションの修正
+## 9. 不具合の修正と反映
+Boyacky のサービスインからしばらくして、ユーザーから登録出来ないとクレームが入りました。
+
+調査の結果、ボヤキの量が多いと登録出来ないことがわかりました。
+
+> DynamoDB への Item 登録は 400 KB までの制限があります。
+
+### 9.1 不具合の修正
+不具合の対応として以下を行います。
+
+* HTML内の入力用テキストボックスで文字数を100文字に制限する
+    * input maxlength
+* プログラム側で100文字より長い場合はカットする
+    * boyaki[:100]
+
+
+Cloud9 上で不具合を修正、動作確認をしてください。
+
+### 9.2 イメージの登録
+手順、3 と 4 を参考に、Docker イメージを ECR に登録します。
+
+### 9.3 サービスの更新
 
 
 
 
+## サービス終了のお知らせ
 
+> *平素より『Boyacky』をご愛顧いただきまして、誠にありがとうございます。*
+> 
+> *この度、2020年10月17日 (土) を持ちまして『Boyacky』のサービスを終了致しますことを、お知らせ致します。*
+> 
+> *これまで『Boyacky』をご愛顧いただいた、疲れたおじ様に、改めて御礼を申し上げます。*
+> 
+> *誠にありがとうございました。*
+>
+> *Silverworks*
 
-## 後片付け
-ハンズオンで作成したAWSリソースを削除します。
+サービス終了につき、AWS リソースを削除します。
 
-### ECSサービスの削除
+#### ECS の削除
+* クラスターの削除
+    * タスクの停止
+        * `boyacky-taskdef`を選択して [停止] ボタンを押下
+    * サービスの削除
+        * `boyacky-service`を選択して [削除] ボタンを押下
+            * 「Load Balancing のリソースが見つかりました」と表示されますが、無視してください。
+    * クラスターの削除
+        * [クラスターの削除] ボタンを押下
 
-### CloudFormationリソースの削除
+* タスク定義の登録解除
+    * タスク定義`boyacky-taskdef`を押下
+    * `boyacky-taskdef:{リビジョン}`を選択して [アクション]-[登録解除]
 
-[CloudFormationコンソール](https://ap-northeast-1.console.aws.amazon.com/cloudformation)を開き、`BoyackyStack`を選択して[削除]ボタンを押下します。
-Cloud9用のスタックは、BoyackyStackを削除すると同時に削除されるため、そのままにします。
+#### ECR の削除
+* リポジトリを選択して [削除] ボタンを押下
+
+#### CloudFormation リソースの削除
+[CloudFormation コンソール](https://ap-northeast-1.console.aws.amazon.com/cloudformation)を開き、`BoyackyStack`を選択して [削除] ボタンを押下
+
+> Cloud9 用のスタックは、BoyackyStack を削除すると同時に削除されるため、そのままにします。
 
 削除には数分の時間がかかります。
 
-### DynamoDBテーブルの削除
-[DynamoDBコンソール](https://ap-northeast-1.console.aws.amazon.com/dynamodb)を開き、`boyacky`テーブルを削除します。
+#### DynamoDB テーブルの削除
+[DynamoDB コンソール](https://ap-northeast-1.console.aws.amazon.com/dynamodb)を開き、`boyacky`テーブルを削除
