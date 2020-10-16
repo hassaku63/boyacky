@@ -505,7 +505,7 @@ Login Succeeded
 * docker login
     * --password-stdin で標準入力から認証トークンを受け取ります。
 
-#### 2. Dockerイメージを構築 
+#### 2. Dockerイメージをビルド
 既に3.2で Docker イメージを作成したのでスキップします。
 
 * 作成済みのイメージ
