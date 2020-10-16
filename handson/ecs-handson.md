@@ -59,7 +59,7 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
 * CloudWatch Log Group
     * コンテナのログ出力先
 * IAM ロール
-* ECS / ECR コントロールプレーンとの通信
+* ECS コントロールプレーン / ECR との通信
     * NAT ゲートウェイ or PrivateLink ( Private サブネットにデプロイする場合)
 
 ### 1.1 CloudFormation スタックの作成
