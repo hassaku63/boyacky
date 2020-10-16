@@ -253,6 +253,7 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
     * Cloud9 のメニュー [Tools]-[Process List] から docker デーモンを探してみましょう。
     * ターミナルから現在のイメージ一覧を確認してください。
         * 既にイメージがあります。これは何でしょうか？
+    * docker イメージにおけるタグとはどのような意味を持つでしょうか？ ([参考](https://docs.docker.jp/linux/step_six.html))
 
 ### 3.1 Dockerfile の作成
 Boyacky 用のイメージを作成するために、boyacky フォルダ内に Dockerfile を作成します。
