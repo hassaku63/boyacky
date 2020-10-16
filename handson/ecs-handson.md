@@ -59,8 +59,8 @@ ECS 上でサービスを動かすためには、多くの関連リソースを�
 * CloudWatch Log Group
     * コンテナのログ出力先
 * IAM ロール
-* ECS / ECR との通信
-    * NAT ゲートウェイ or PrivateLink
+* ECS コントロールプレーン / ECR との通信
+    * NAT ゲートウェイ or PrivateLink ( Private サブネットにデプロイする場合)
 
 ### 1.1 CloudFormation スタックの作成
 今回は時間の都合上、CloudFormation（以下、CF）を利用して関連リソースの構築を自動で行います。構築する AWS リソースは下図になります。
@@ -176,7 +176,8 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 * 開発
     1. Dockerfile を作成する
     2. `image build`コマンドでローカルにイメージを作成する
-    3. `image push`コマンドで Docker レジストリにイメージを保管する
+    3. `tag` コマンドでイメージにタグを付与する
+    4. `image push`コマンドで Docker レジストリにイメージを保管する
 * 運用
     1. `container run`コマンドでイメージを取得してコンテナを起動する
 * 破棄
@@ -214,7 +215,7 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 | push | | イメージをレジストリに送信 |
 | rm | rmi | イメージを削除 |
 | save | | イメージを tar 形式または標準出力にストリーム |
-| tag | | イメージを参照する新しいタグを付ける |
+| tag | | イメージを参照する新しいタグを付ける ([参考](https://docs.docker.jp/linux/step_six.html)) |
 
 コンテナ管理用コマンド
 
@@ -252,6 +253,7 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
     * Cloud9 のメニュー [Tools]-[Process List] から docker デーモンを探してみましょう。
     * ターミナルから現在のイメージ一覧を確認してください。
         * 既にイメージがあります。これは何でしょうか？
+    * docker イメージにおけるタグとはどのような意味を持つでしょうか？ ([参考](https://docs.docker.jp/linux/step_six.html))
 
 ### 3.1 Dockerfile の作成
 Boyacky 用のイメージを作成するために、boyacky フォルダ内に Dockerfile を作成します。
@@ -268,9 +270,7 @@ FROM python:alpine
 WORKDIR /boyacky
 COPY . /boyacky
 
-RUN pip install flask==1.1.2
-RUN pip install boto3==1.15.8
-RUN pip install pynamodb==4.3.3
+RUN pip install -r requirements.txt
 
 EXPOSE 8080
 
@@ -288,7 +288,7 @@ CMD ["-m", "app"]
 | RUN | イメージファイル作成時のコマンドを記入 |
 | EXPOSE | コンテナ上でListenするポート番号を指定。 |
 | ENTRYPOINT | |
-| CMD | コンテナ起動時に実行するコマンドを指定 |
+| CMD | コンテナ起動時に実行するコマンドとオプションを指定 |
 
 ENTRYPOINT はイメージの作成者側でコンテナの用途をある程度制限したい場合に利用します。
 
@@ -505,7 +505,7 @@ Login Succeeded
 * docker login
     * --password-stdin で標準入力から認証トークンを受け取ります。
 
-#### 2. Dockerイメージを構築 
+#### 2. Dockerイメージをビルド
 既に3.2で Docker イメージを作成したのでスキップします。
 
 * 作成済みのイメージ
@@ -519,7 +519,7 @@ Login Succeeded
 そのため、作成済みのイメージにタグを付けてエイリアスを作成します。
 
 ```
-$ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app
+$ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest
 ```
 
 > docker tag 元イメージ名[:タグ] 新イメージ名[:タグ]
@@ -533,7 +533,7 @@ $ docker tag boyacky/web-app:latest xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaw
 最後にイメージをECRへ登録します。
 
 ```
-$ docker push xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app
+$ docker push xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest
 ```
 
 ECR側のリポジトリURIと一致しない場合、リクエストは拒否されて下記のメッセージが表示されます。
@@ -702,6 +702,8 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
 * コンテナの定義
     * [コンテナの追加]ボタンを押下
 
+注意: 指定できる値の組み合わせには制限があり、任意の値は指定できません - 参考: [Amazon ECS Developer Guide - 指定された CPU またはメモリの値が無効](https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/task-cpu-memory-error.html)
+
 ##### コンテナの追加
 [コンテナの追加]用のポップアップウインドウが表示されます。
 
@@ -709,7 +711,7 @@ ECSコンソールから[タスク定義]を選択し、[新しいタスク定�
     * コンテナ名
         * `boyacky-web-app`
     * イメージ
-        * `xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app`
+        * `xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:latest`
         * 4.1でコピーしたリポジトリURIをペースト
         * latestタグの場合は省略可能
     * ポートマッピング
