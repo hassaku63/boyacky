@@ -176,7 +176,8 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 * 開発
     1. Dockerfile を作成する
     2. `image build`コマンドでローカルにイメージを作成する
-    3. `image push`コマンドで Docker レジストリにイメージを保管する
+    3. `tag` コマンドでイメージにタグを付与する
+    4. `image push`コマンドで Docker レジストリにイメージを保管する
 * 運用
     1. `container run`コマンドでイメージを取得してコンテナを起動する
 * 破棄
@@ -214,7 +215,7 @@ Dockerfile は、Docker 上で動作させるコンテナの構成情報を記�
 | push | | イメージをレジストリに送信 |
 | rm | rmi | イメージを削除 |
 | save | | イメージを tar 形式または標準出力にストリーム |
-| tag | | イメージを参照する新しいタグを付ける |
+| tag | | イメージを参照する新しいタグを付ける ([参考](https://docs.docker.jp/linux/step_six.html)) |
 
 コンテナ管理用コマンド
 
