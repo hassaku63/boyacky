@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: ECS Handson
+Description: Container Handson
 Resources:
   VPC:
     Type: 'AWS::EC2::VPC'
@@ -213,6 +213,7 @@ Resources:
         - !Ref EPSecurityGroup
   BoyackyTable:
     Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: Retain
     Properties:
       TableName: boyacky
       BillingMode: PAY_PER_REQUEST
@@ -238,6 +239,6 @@ Resources:
   Cloud9Env:
     Type: 'AWS::Cloud9::EnvironmentEC2'
     Properties:
-      Name: ECS Handson
+      Name: Container Handson
       InstanceType: t3.micro
       SubnetId: !Ref PublicSub1
