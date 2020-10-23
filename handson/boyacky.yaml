@@ -199,6 +199,18 @@ Resources:
       PrivateDnsEnabled: true
       SecurityGroupIds:
         - !Ref EPSecurityGroup
+  ECRApiEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      SubnetIds:
+        - !Ref PrivateSub1
+        - !Ref PrivateSub2
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref EPSecurityGroup
   LogsEndpoint:
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
