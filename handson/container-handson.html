@@ -20,7 +20,7 @@ html,body,#wrapper{font-size:10pt!important}
   </head>
 <body class="normal firstload">
   <div id="wrapper">
-<h1 id="%E3%82%B3%E3%83%B3%E3%83%86%E3%83%8A%E3%82%92%E7%AD%8B%E8%82%89%E3%81%A7%E8%A6%9A%E3%81%88%E3%82%8B-day1%3A%E3%83%8F%E3%83%B3%E3%82%BA%E3%82%AA%E3%83%B3">コンテナを筋肉で覚える - Day1: ハンズオン</h1>
+<h1 id="%E3%82%B3%E3%83%B3%E3%83%86%E3%83%8A%E3%82%92%E8%BA%AB%E4%BD%93%E3%81%A7%E8%A6%9A%E3%81%88%E3%82%8B-day1%3A%E3%83%8F%E3%83%B3%E3%82%BA%E3%82%AA%E3%83%B3">コンテナを身体で覚える - Day1: ハンズオン</h1>
 
 <ol>
 <li>関連リソースの構築</li>
@@ -154,6 +154,12 @@ html,body,#wrapper{font-size:10pt!important}
 </ul></li>
 </ol>
 
+<blockquote>
+<p>Template error: Fn::Select cannot select nonexistent value at index 1 </p>
+
+<p>上記エラーが出た場合は、<a href="https://zenn.dev/hassaku63/articles/11f005e42c701bf3b37f">hassaku</a> のサイトを確認してください</p>
+</blockquote>
+
 <h5 id="%E3%80%90%E8%AA%B2%E9%A1%8C%E3%80%91">【課題】</h5>
 
 <ul>
@@ -208,8 +214,12 @@ html,body,#wrapper{font-size:10pt!important}
 
 <h3 id="2.1%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89">2.1 コードのダウンロード</h3>
 
-<p><a href="https://github.com/hassaku63/boyacky">ハッサク(笑)</a> の GitHub からコードをダウンロードします。</p>
-<pre><code>$ git clone git@github.com:hassaku63/boyacky.git</code></pre>
+<p><a href="https://github.com/hassaku63/boyacky">hassaku</a> の GitHub からコードをダウンロードします。</p>
+<pre><code>$ git clone https://github.com/hassaku63/boyacky.git</code></pre>
+
+<blockquote>
+<p>接続出来ない場合は Box 上の <code>boyacky.zip</code> をダウンロードして解凍、Cloud9 上にフォルダをドラッグ&amp;ドロップしてください。</p>
+</blockquote>
 
 <h3 id="2.2%E3%83%A2%E3%82%B8%E3%83%A5%E3%83%BC%E3%83%AB%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB">2.2 モジュールのインストール</h3>
 
@@ -798,7 +808,7 @@ Cloud9 起動時に AWS マネジメントコンソールへログインした�
 </ul></li>
 </ul>
 
-<p>オプション <code>-it</code>vを付けてシェルを起動すると、あたかもコンテナ内に SSH でログインしたかのようにコンテナ内部を操作可能です。</p>
+<p>オプション <code>-it</code>を付けてシェルを起動すると、あたかもコンテナ内に SSH でログインしたかのようにコンテナ内部を操作可能です。</p>
 
 <p><code>ls</code> コマンドでファイル一覧を確認します。</p>
 <pre><code>/boyacky # ls -al</code></pre>
@@ -824,8 +834,7 @@ Cloud9 起動時に AWS マネジメントコンソールへログインした�
 Dockerfile
 README.md
 __pycache__
-handson
-requirements.txt</code></pre>
+handson</code></pre>
 
 <p>Docker イメージを再作成します。</p>
 <pre><code>$ docker build -t boyacky/web-app .</code></pre>
@@ -899,7 +908,7 @@ https://docs.aws.amazon.com/ja_jp/cloud9/latest/user-guide/app-preview.html</p>
 <p>タグのイミュータビリティが<code>有効</code>の場合、タグのつけかえを禁止できます。固定タグでの運用は出来なくなるため、新しいイメージがビルドされるたびにタスク定義の変更とサービス定義の変更が必須となります。<br/>
 しかし、ソースコードとコンテナイメージの一貫性の把握が容易になるというメリットがあります。</p>
 
-<p>実際の運用ではタグのイミュータビリティを<code>有効</code>にして、イメージの更新ごとに一意のタグを付けることをご検討します。</p>
+<p>実際の運用ではタグのイミュータビリティを<code>有効</code>にして、イメージの更新ごとに一意のタグを付けることを検討します。</p>
 
 <p>画面右下の [リポジトリを作成] ボタンを押下します。</p>
 
@@ -1594,7 +1603,7 @@ EKS は Kubernetes を利用しているため、既存のプラグインやツ�
 
 <ul>
 <li>ボヤいて一覧に表示されることを確認してください。</li>
-<li>[浄化]ボタンを押下してボヤキが削除されることを確認してください。</li>
+<li>[浄化] ボタンを押下してボヤキが削除されることを確認してください。</li>
 </ul>
 
 <h2 id="9.%E4%B8%8D%E5%85%B7%E5%90%88%E3%81%AE%E4%BF%AE%E6%AD%A3%E3%81%A8%E5%8F%8D%E6%98%A0">9. 不具合の修正と反映</h2>
@@ -1612,15 +1621,15 @@ EKS は Kubernetes を利用しているため、既存のプラグインやツ�
 <p>不具合の対応として以下を行います。</p>
 
 <ul>
-<li>HTML 内の入力用テキストボックスで文字数を 128 文字に制限する
+<li>HTML 内の入力用テキストボックスで文字数を 20 文字に制限する
 
 <ul>
-<li>input タグに maxlength 属性を設定して 128 文字までにする</li>
+<li>input タグに maxlength 属性を設定して 20 文字までにする</li>
 </ul></li>
-<li>app.py の create_data 関数内で 128 文字より長い場合はカットする
+<li>app.py の create_data 関数内で 20 文字より長い場合はカットする
 
 <ul>
-<li>boyaki[:128]</li>
+<li>boyaki[:20]</li>
 </ul></li>
 </ul>
 
@@ -1633,7 +1642,7 @@ EKS は Kubernetes を利用しているため、既存のプラグインやツ�
 <h3 id="9.2%E3%82%A4%E3%83%A1%E3%83%BC%E3%82%B8%E3%81%AE%E7%99%BB%E9%8C%B2">9.2 イメージの登録</h3>
 
 <p>過去の手順を参考に不具合に対応したイメージを作成します。<br/>
-タグはCloud9上のECR上も<code>1.1</code>にします。</p>
+タグは Cloud9 上の ECR 上も<code>1.1</code>にします。</p>
 <pre><code>$ docker image build -t boyacky/web-app:1.1 .</code></pre>
 
 <p>Docker イメージを ECR に登録します。</p>
