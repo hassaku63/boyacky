@@ -180,7 +180,7 @@ Resources:
       VpcId: !Ref VPC
       RouteTableIds:
         - !Ref PrivateRouteTbl
-  VPCEndpoint:
+  DynamoDBEndpoint:
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
@@ -215,6 +215,18 @@ Resources:
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      SubnetIds:
+        - !Ref PrivateSub1
+        - !Ref PrivateSub2
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref EPSecurityGroup
+  ComprehendEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.comprehend'
       VpcEndpointType: Interface
       VpcId: !Ref VPC
       SubnetIds:
