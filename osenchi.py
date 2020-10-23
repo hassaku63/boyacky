@@ -1,11 +1,10 @@
 import csv
 import os
-import sys
 import boto3
 from datetime import timedelta
 from datetime import datetime as dt
-from boyaki import Boyaki
 from typing import List
+from boyaki import Boyaki
 
 s3 = boto3.resource('s3')
 comprehend = boto3.client('comprehend')
@@ -45,8 +44,8 @@ def put_boyaki(file_path: str, bucket_name: str):
     bucket.upload_file(file_path, dest_name)
 
 
-def execute(bucket_name: str):
-    hash_key = (dt.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+def execute(bucket_name: str, days: int = 0):
+    hash_key = (dt.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     items = get_boyaki(hash_key)
     if len(items) > 0:
         file_path = f'/tmp/{hash_key}.csv'
@@ -58,7 +57,7 @@ if __name__ == '__main__':
     try:
         if not Boyaki.exists():
             Boyaki.create_table(wait=True)
-        bucket_name = os.getenv('EXPORT_BUCKET', sys.argv[1])
+        bucket_name = os.getenv('EXPORT_BUCKET')
         execute(bucket_name)
     except Exception as ex:
         print('error:', ex)
