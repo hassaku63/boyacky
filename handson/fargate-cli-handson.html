@@ -1,0 +1,388 @@
+<h1 id="fargate-cli-handson"><span class="header-section-number">1</span> fargate-cli-handson</h1>
+<p>Fargate service/task のデプロイを CLI で実施します。</p>
+<p>文頭に <code>(見解)</code> と書いてあるものは筆者の知識に基づく見解であり、事実誤認等が含まれる可能性があります。鵜呑みにしないでください。</p>
+<h2 id="概要"><span class="header-section-number">1.1</span> 概要</h2>
+<p>Fargate タイプの ECS クラスタと、稼働するネットワーク (VPC, Subnet, RouteTable, Gateway等) の構築、 フェイシングするロードバランサ (ALB) が構成済みであることを前提として、以下の手順を踏むことで初回デプロイが完了する。</p>
+<ol type="1">
+<li>開発環境でアプリケーションのイメージをビルド</li>
+<li>ECR にビルドしたイメージを push</li>
+<li>タスク定義を登録</li>
+<li>Service を作成</li>
+</ol>
+<p>また、初回以降でアプリケーションの変更を伴うデプロイを行う手順は次の通り。</p>
+<ol type="1">
+<li>開発環境でアプリケーションのイメージをビルド</li>
+<li>ECR にビルドしたイメージを push</li>
+<li>タスク定義の新しいリビジョンを登録</li>
+<li>Service を更新</li>
+</ol>
+<h2 id="事前条件前提条件"><span class="header-section-number">1.2</span> 事前条件／前提条件</h2>
+<p><a href="https://github.com/hassaku63/boyacky">Day 1</a> ハンズオンの <a href="https://github.com/hassaku63/boyacky/blob/master/handson/boyacky.yaml">handson/boyacky.yaml</a> スタックが実行済みであること</p>
+<p>ここで実行するコマンドは、特に断りのない限り Cloud9 Console の上で実行するものとします。</p>
+<p>また、追加作業として以下の内容を実施します。これらは作業が必要なタイミングで随時指示します。</p>
+<ul>
+<li>Cloud9 を新規に立ち上げる
+<ul>
+<li>Default VPC でもOK</li>
+</ul></li>
+<li>ECR レポジトリ “boyacky/web-app” の作成 (Day1 <code>4.1 Amazon ECR にリポジトリを作成</code>)</li>
+<li>ECS クラスタ “boyacky-cluster” を Fargate 起動タイプで作成 (Day1 <code>6.1 ECS クラスターの作成</code>)</li>
+<li>ALB ターゲットグループの作成
+<ul>
+<li>ターゲットの作成は不要</li>
+</ul></li>
+<li>ALB リスナーの作成</li>
+<li>IAM サービスが利用するタスクロールの作成 (Day1 <code>7.1 タスク用のIAMロール作成</code>)
+<ul>
+<li>DynamoDB full-access</li>
+</ul></li>
+<li>IAM ワンショットタスクが利用するタスクロールの作成
+<ul>
+<li>DynamoDB full-access</li>
+<li>Comprehend full-access</li>
+<li>S3 full-access</li>
+</ul></li>
+<li>S3 バケットの作成 (osenchi batch output)</li>
+</ul>
+<h2 id="事前作業"><span class="header-section-number">1.3</span> 事前作業</h2>
+<p>次の環境変数をセットします。</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1"></a><span class="co"># Cloud9 console </span></span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="bu">export</span> <span class="va">AWS_ACCOUNT=$(</span><span class="ex">curl</span> -s http://169.254.169.254/latest/dynamic/instance-identity/document <span class="kw">|</span> <span class="ex">python3</span> -c <span class="st">&quot;import json, sys; print(json.load(sys.stdin)[&#39;accountId&#39;]);&quot;</span><span class="va">)</span></span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="bu">export</span> <span class="va">AWS_REGION=$(</span><span class="ex">curl</span> -s http://169.254.169.254/latest/dynamic/instance-identity/document <span class="kw">|</span> <span class="ex">python3</span> -c <span class="st">&quot;import json, sys; print(json.load(sys.stdin)[&#39;region&#39;]);&quot;</span><span class="va">)</span></span></code></pre></div>
+<p>ECR レポジトリの名前をシェル変数にセット</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1"></a><span class="bu">export</span> <span class="va">DOCKER_IMAGE_NAME=</span>boyacky/web-app</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="bu">export</span> <span class="va">DOCKER_REMOTE_REPOSITORY=${AWS_ACCOUNT}</span>.dkr.ecr.<span class="va">${AWS_REGION}</span>.amazonaws.com/<span class="va">${DOCKER_IMAGE_NAME}</span></span></code></pre></div>
+<h3 id="cloud9-環境の起動"><span class="header-section-number">1.3.1</span> Cloud9 環境の起動</h3>
+<p>作業するリージョンで Cloud9 環境を起動します。</p>
+<ul>
+<li>名前: 任意</li>
+<li>Environment type: EC2</li>
+<li>Instance type: t2.micro</li>
+<li>Platform: Amazon Linux 2</li>
+</ul>
+<p>起動が完了したら、この環境にログインします。以降の作業はこの環境のコンソール上で実施します。</p>
+<p>コンソール上で以下のレポジトリを clone してください。</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1"></a><span class="fu">git</span> clone https://github.com/hassaku63/boyacky.git</span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="co"># or</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a><span class="fu">git</span> clone git@github.com:hassaku63/boyacky.git</span></code></pre></div>
+<h3 id="alb-の設定"><span class="header-section-number">1.3.2</span> ALB の設定</h3>
+<p>サービス(コンテナ)に向けるためのターゲットグループ、およびリスナーを設定します。</p>
+<p>CloudFormation によって “boyacky-alb” という名前の ALB が作成されています。ここに ECS (awsvpc ネットワークモード) のサービスをルーティングするための設定を入れていきます。</p>
+<h4 id="ターゲットグループの作成"><span class="header-section-number">1.3.2.1</span> ターゲットグループの作成</h4>
+<p>EC2 - Load Balancing - Target Groups の画面に移動し、ターゲットグループを作成します。</p>
+<ul>
+<li>Target Type: IP Address</li>
+<li>Target group name: tg-boyacky-app</li>
+<li>Protocol/Port: HTTP, 80</li>
+<li>VPC: スタックで作成したVPCを選択 (boyacky-vpc)</li>
+<li>Health checks: デフォルト値</li>
+</ul>
+<p>ターゲット登録の画面は編集不要</p>
+<h4 id="リスナーの登録"><span class="header-section-number">1.3.2.2</span> リスナーの登録</h4>
+<p>EC2 - Load Balancing - Load balancers の画面に移動し、 “boyacky-alb” のリスナーを登録します。</p>
+<ul>
+<li>Protocol/Port: HTTP, 80</li>
+<li>Action
+<ul>
+<li>Forward to: tg-boyacky-app (wight=1)</li>
+</ul></li>
+</ul>
+<h2 id="ecr-レポジトリの作成"><span class="header-section-number">1.4</span> ECR レポジトリの作成</h2>
+<p><code>ecr create-repository</code> コマンドで Docker レポジトリを作成します。</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1"></a><span class="ex">aws</span> ecr create-repository --repository-name boyacky/web-app</span></code></pre></div>
+<p>成功した場合は次のような json が戻ります。</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2"></a>    <span class="dt">&quot;repository&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb5-3"><a href="#cb5-3"></a>        <span class="dt">&quot;repositoryArn&quot;</span><span class="fu">:</span> <span class="st">&quot;arn:aws:ecr:&lt;region&gt;:&lt;aws-account&gt;:repository/boyacky/web-app&quot;</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4"></a>        <span class="dt">&quot;registryId&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;aws-account&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb5-5"><a href="#cb5-5"></a>        <span class="dt">&quot;repositoryName&quot;</span><span class="fu">:</span> <span class="st">&quot;boyacky/web-app&quot;</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6"></a>        <span class="dt">&quot;repositoryUri&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;aws-account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com/boyacky/web-app&quot;</span><span class="fu">,</span></span>
+<span id="cb5-7"><a href="#cb5-7"></a>        <span class="dt">&quot;createdAt&quot;</span><span class="fu">:</span> <span class="fl">1000000000.0</span><span class="fu">,</span></span>
+<span id="cb5-8"><a href="#cb5-8"></a>        <span class="dt">&quot;imageTagMutability&quot;</span><span class="fu">:</span> <span class="st">&quot;MUTABLE&quot;</span><span class="fu">,</span></span>
+<span id="cb5-9"><a href="#cb5-9"></a>        <span class="dt">&quot;imageScanningConfiguration&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb5-10"><a href="#cb5-10"></a>            <span class="dt">&quot;scanOnPush&quot;</span><span class="fu">:</span> <span class="kw">false</span></span>
+<span id="cb5-11"><a href="#cb5-11"></a>        <span class="fu">}</span></span>
+<span id="cb5-12"><a href="#cb5-12"></a>    <span class="fu">}</span></span>
+<span id="cb5-13"><a href="#cb5-13"></a><span class="fu">}</span></span></code></pre></div>
+<h2 id="アプリケーションの最新版を-ecr-に-push"><span class="header-section-number">1.5</span> アプリケーションの最新版を ECR に push</h2>
+<p>Docker レジストリ (ECR) にログインします。</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1"></a><span class="ex">aws</span> ecr get-login-password --region <span class="va">${AWS_REGION}</span> <span class="kw">|</span> <span class="ex">docker</span> login --username AWS --password-stdin <span class="va">${AWS_ACCOUNT}</span>.dkr.ecr.<span class="va">${AWS_REGION}</span>.amazonaws.com</span></code></pre></div>
+<p><em>アプリケーションのソースディレクトリに移動した後</em>、イメージをビルドします。ここでは、ビルドを実行した時点での日時をタグとして付与することにします。</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1"></a><span class="bu">export</span> <span class="va">IMAGE_TAG=$(</span><span class="fu">date</span> +%Y%m%d-%H%M%S<span class="va">)</span></span>
+<span id="cb7-2"><a href="#cb7-2"></a><span class="ex">docker</span> build -t <span class="va">${DOCKER_IMAGE_NAME}</span>:<span class="va">${IMAGE_TAG}</span> .</span></code></pre></div>
+<p>ECR にイメージを push します。</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1"></a><span class="ex">docker</span> tag <span class="va">${DOCKER_IMAGE_NAME}</span>:<span class="va">${IMAGE_TAG}</span> <span class="va">${DOCKER_REMOTE_REPOSITORY}</span>:<span class="va">${IMAGE_TAG}</span></span>
+<span id="cb8-2"><a href="#cb8-2"></a><span class="ex">docker</span> push <span class="va">${DOCKER_REMOTE_REPOSITORY}</span>:<span class="va">${IMAGE_TAG}</span></span></code></pre></div>
+<h2 id="ecs-クラスターの作成"><span class="header-section-number">1.6</span> ECS クラスターの作成</h2>
+<p>ECS クラスターを Fargate 起動タイプで作成します。</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1"></a><span class="ex">aws</span> ecs create-cluster \</span>
+<span id="cb9-2"><a href="#cb9-2"></a>  --cluster-name boyacky-cluster \</span>
+<span id="cb9-3"><a href="#cb9-3"></a>  --capacity-providers FARGATE</span></code></pre></div>
+<p>正しく実行できれば、以下のような json が戻ります。</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb10-1"><a href="#cb10-1"></a><span class="fu">{</span></span>
+<span id="cb10-2"><a href="#cb10-2"></a>    <span class="dt">&quot;cluster&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb10-3"><a href="#cb10-3"></a>        <span class="dt">&quot;clusterArn&quot;</span><span class="fu">:</span> <span class="st">&quot;arn:aws:ecs:&lt;region&gt;:xxxxxxxxxxxx:cluster/boyacky-cluster&quot;</span><span class="fu">,</span></span>
+<span id="cb10-4"><a href="#cb10-4"></a>        <span class="dt">&quot;clusterName&quot;</span><span class="fu">:</span> <span class="st">&quot;boyacky-cluster&quot;</span><span class="fu">,</span></span>
+<span id="cb10-5"><a href="#cb10-5"></a>        <span class="dt">&quot;status&quot;</span><span class="fu">:</span> <span class="st">&quot;PROVISIONING&quot;</span><span class="fu">,</span></span>
+<span id="cb10-6"><a href="#cb10-6"></a>        <span class="dt">&quot;registeredContainerInstancesCount&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb10-7"><a href="#cb10-7"></a>        <span class="dt">&quot;runningTasksCount&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb10-8"><a href="#cb10-8"></a>        <span class="dt">&quot;pendingTasksCount&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb10-9"><a href="#cb10-9"></a>        <span class="dt">&quot;activeServicesCount&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="fu">,</span></span>
+<span id="cb10-10"><a href="#cb10-10"></a>        <span class="dt">&quot;statistics&quot;</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb10-11"><a href="#cb10-11"></a>        <span class="dt">&quot;tags&quot;</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb10-12"><a href="#cb10-12"></a>        <span class="dt">&quot;settings&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb10-13"><a href="#cb10-13"></a>            <span class="fu">{</span></span>
+<span id="cb10-14"><a href="#cb10-14"></a>                <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;containerInsights&quot;</span><span class="fu">,</span></span>
+<span id="cb10-15"><a href="#cb10-15"></a>                <span class="dt">&quot;value&quot;</span><span class="fu">:</span> <span class="st">&quot;disabled&quot;</span></span>
+<span id="cb10-16"><a href="#cb10-16"></a>            <span class="fu">}</span></span>
+<span id="cb10-17"><a href="#cb10-17"></a>        <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb10-18"><a href="#cb10-18"></a>        <span class="dt">&quot;capacityProviders&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb10-19"><a href="#cb10-19"></a>            <span class="st">&quot;FARGATE&quot;</span></span>
+<span id="cb10-20"><a href="#cb10-20"></a>        <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb10-21"><a href="#cb10-21"></a>        <span class="dt">&quot;defaultCapacityProviderStrategy&quot;</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb10-22"><a href="#cb10-22"></a>        <span class="dt">&quot;attachmentsStatus&quot;</span><span class="fu">:</span> <span class="st">&quot;UPDATE_IN_PROGRESS&quot;</span></span>
+<span id="cb10-23"><a href="#cb10-23"></a>    <span class="fu">}</span></span>
+<span id="cb10-24"><a href="#cb10-24"></a><span class="fu">}</span></span></code></pre></div>
+<h2 id="ecs-用の-iam-ロールを作成"><span class="header-section-number">1.7</span> ECS 用の IAM ロールを作成</h2>
+<p>コンテナインスタンスが使用するロールと、コンテナ自身が使用するロールの2種類が必要です。</p>
+<p>いずれもマネジメントコンソールから作成します。ARN を後で利用するので、手元に控えてください。</p>
+<h3 id="タスク実行ロール"><span class="header-section-number">1.7.1</span> タスク実行ロール</h3>
+<p>IAM ロールに <code>ecsTaskExecutionRole</code> という名前のロールがあれば、作業不要</p>
+<p>※ なければ <a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html">Amazon ECS task execution IAM role</a> の記述通りに作成</p>
+<h3 id="タスクロール"><span class="header-section-number">1.7.2</span> タスクロール</h3>
+<ul>
+<li>Choose a use case: Elastic Container Service</li>
+<li>Select your use case: Elastic Container Service Task (Allows ECS tasks to call AWS services on your behalf.)</li>
+<li>Attached permissions policies
+<ul>
+<li>以下のポリシーを追加
+<ul>
+<li>AmazonDynamoDBFullAccess</li>
+<li>AmazonS3FullAccess</li>
+<li>ComprehendFullAccess</li>
+</ul></li>
+</ul></li>
+<li>Role Name: 任意 (例: boyacky-ecs-task-role)</li>
+</ul>
+<h2 id="タスク定義の登録"><span class="header-section-number">1.8</span> タスク定義の登録</h2>
+<p>AWS CLI <code>ecs register-task-definition</code> を使って、タスク定義を登録します。</p>
+<p>実際に使用する json とパラメータ仕様を突合しながら、何をしているのか確認してみましょう。</p>
+<ul>
+<li>register-task-definition パラメータ仕様 … <a href="params-resgister-task-definition.md">params-resgister-task-definition.md</a></li>
+<li>入力パラメータとして使用する json の雛形 … <a href="cli-input-templates/task-definition-input.json">cli-input-templates/task-definition-input.json</a></li>
+</ul>
+<h3 id="タスク定義の登録-cli"><span class="header-section-number">1.8.1</span> タスク定義の登録 (CLI)</h3>
+<p>引数の数が多く、かつ引数のいくつか（特に必須の <code>--container-defeinitions</code> ）ため、 <code>--cli-input-json</code> を用いて実行します。</p>
+<p><code>register-task-definition</code> の入力とするJSON を作成します。</p>
+<p><a href="cli-input-templates/task-definition-input.json">cli-input-templates/task-definition-input.json</a> に雛形となるファイルがあります。 この json ファイルにはプレースホルダとなる変数 ( <code>${ECS_TASK_ROLE_ARN}}</code> など) が含まれており、 <code>envsubst</code> コマンドを利用することでけれらのプレースホルダに対応する環境変数の値を適用できます。各自の AWS 環境に応じて値をセットし、以下のコマンドを実行しましょう。</p>
+<p>環境変数のセット</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1"></a><span class="co">#</span></span>
+<span id="cb11-2"><a href="#cb11-2"></a><span class="co"># 確認用。これまでの作業で既にセット済みの変数を確認します</span></span>
+<span id="cb11-3"><a href="#cb11-3"></a><span class="co">#</span></span>
+<span id="cb11-4"><a href="#cb11-4"></a><span class="bu">echo</span> <span class="va">$AWS_ACCOUNT</span></span>
+<span id="cb11-5"><a href="#cb11-5"></a><span class="bu">echo</span> <span class="va">$AWS_REGION</span></span>
+<span id="cb11-6"><a href="#cb11-6"></a><span class="bu">echo</span> <span class="va">$DOCKER_IMAGE_NAME</span></span>
+<span id="cb11-7"><a href="#cb11-7"></a><span class="bu">echo</span> <span class="va">$DOCKER_REMOTE_REPOSITORY</span> <span class="co"># 次の値と等価 ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE_NAME}</span></span>
+<span id="cb11-8"><a href="#cb11-8"></a><span class="bu">echo</span> <span class="va">$IMAGE_TAG</span></span>
+<span id="cb11-9"><a href="#cb11-9"></a></span>
+<span id="cb11-10"><a href="#cb11-10"></a><span class="co">#</span></span>
+<span id="cb11-11"><a href="#cb11-11"></a><span class="co"># 各自の環境に合わせて、セットしてください</span></span>
+<span id="cb11-12"><a href="#cb11-12"></a><span class="co">#</span></span>
+<span id="cb11-13"><a href="#cb11-13"></a><span class="bu">export</span> <span class="va">ECS_TASK_ROLE_ARN=</span>  <span class="co"># タスクロールの ARN</span></span>
+<span id="cb11-14"><a href="#cb11-14"></a><span class="bu">export</span> <span class="va">ECS_TASK_EXEXCUTION_ROLE_ARN=</span>  <span class="co"># タスク実行ロール (コンテナインスタンスが利用する方のロール) の ARN</span></span></code></pre></div>
+<p><code>--cli-input-json</code> の入力に使用する json を生成します。カレントディレクトリを <code>handson/</code> に移動して、以降の作業を実施してください。</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1"></a><span class="co"># envsubst を使用して、プレースホルダに環境変数を埋め込んで出力</span></span>
+<span id="cb12-2"><a href="#cb12-2"></a><span class="ex">envsubst</span> <span class="op">&lt;</span> cli-input-templates/task-definition-input.json <span class="op">&gt;</span> cli-inputs/boyacky-taskdef.json</span></code></pre></div>
+<p><code>boyacky-taskdef.json</code> を開いて、プレースホルダ ( <code>${xxx}</code> 形式) が残っていないことを確認してください。</p>
+<p>json に問題がなければ、 <code>ecs register-task-definition</code> でタスク定義を登録します。</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1"></a><span class="ex">aws</span> ecs register-task-definition --cli-input-json file://cli-inputs/boyacky-taskdef.json <span class="kw">|</span> <span class="fu">tee</span> cli-outputs/register-task-definition-output.json</span></code></pre></div>
+<p>正常に Task difinition が作成された場合の出力例は <a href="cli-output-samples/register-task-definition.json">cli-output-samples/register-task-definition.json</a> のようになります。</p>
+<p>出力の json から、 <code>taskDefinition.taskDefinitionArn</code> の値を確認し、 <code>TASKDEF_ARN</code> 環境変数にセットします。</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: CLI の戻り値の、taskDefinition.taskDefinitionArn をコピペ</span></span>
+<span id="cb14-2"><a href="#cb14-2"></a><span class="co"># {</span></span>
+<span id="cb14-3"><a href="#cb14-3"></a><span class="co">#     &quot;taskDefinition&quot;: {</span></span>
+<span id="cb14-4"><a href="#cb14-4"></a><span class="co">#         &quot;taskDefinitionArn&quot;: &quot;arn:aws:ecs:&lt;your-region&gt;:&lt;your-aws-account&gt;:task-definition/&lt;taskdef-name&gt;:&lt;revision&gt;&quot;, // この値</span></span>
+<span id="cb14-5"><a href="#cb14-5"></a><span class="co">#         &quot;containerDefinitions&quot;: [</span></span>
+<span id="cb14-6"><a href="#cb14-6"></a><span class="co">#             {</span></span>
+<span id="cb14-7"><a href="#cb14-7"></a><span class="co">#                 // ...</span></span>
+<span id="cb14-8"><a href="#cb14-8"></a><span class="bu">export</span> <span class="va">TASKDEF_ARN=</span><span class="op">&lt;</span><span class="ex">your-taskdef-arn</span><span class="op">&gt;</span></span></code></pre></div>
+<p>ここまでの終了時点で、以下の環境変数がセットされていることを確認してください。</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1"></a><span class="fu">cat</span> <span class="op">&lt;&lt;EOF</span> <span class="kw">|</span> <span class="ex">column</span> -t</span>
+<span id="cb15-2"><a href="#cb15-2"></a>echo AWS_ACCOUNT = <span class="va">${AWS_ACCOUNT}</span></span>
+<span id="cb15-3"><a href="#cb15-3"></a>echo AWS_REGION = <span class="va">${AWS_REGION}</span></span>
+<span id="cb15-4"><a href="#cb15-4"></a>echo DOCKER_IMAGE_NAME = <span class="va">${DOCKER_IMAGE_NAME}</span></span>
+<span id="cb15-5"><a href="#cb15-5"></a>echo DOCKER_REMOTE_REPOSITORY = <span class="va">${DOCKER_REMOTE_REPOSITORY}</span></span>
+<span id="cb15-6"><a href="#cb15-6"></a>echo IMAGE_TAG = <span class="va">${IMAGE_TAG}</span></span>
+<span id="cb15-7"><a href="#cb15-7"></a>echo ECS_TASK_ROLE_ARN = <span class="va">${ECS_TASK_ROLE_ARN}</span></span>
+<span id="cb15-8"><a href="#cb15-8"></a>echo ECS_TASK_EXEXCUTION_ROLE_ARN = <span class="va">${ECS_TASK_EXEXCUTION_ROLE_ARN}</span></span>
+<span id="cb15-9"><a href="#cb15-9"></a>echo TASKDEF_ARN = <span class="va">${TASKDEF_ARN}</span></span>
+<span id="cb15-10"><a href="#cb15-10"></a>EOF</span></code></pre></div>
+<p>また、マネジメントコンソールで “boyacky” というタスク定義が作成されていることを確認してみましょう。</p>
+<h4 id="column-cli-で-json-形式の入力を使用する"><span class="header-section-number">1.8.1.1</span> Column: CLI で JSON 形式の入力を使用する</h4>
+<p>雛形となる JSON の生成を <code>--generate-cli-skeleton</code> で行えます。AWS CLI の共通オプションとしてサポートされています。</p>
+<p>利用するサブコマンドの引数が多い場合や、今回のように json 形式の引数が含まれる場合に検討してみましょう。</p>
+<p>Note: AWS CLI v2 では <a href="https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-usage-skeleton.html">yaml 形式もサポート</a> されました。</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1"></a><span class="co"># ecs register-task-definition の JSON 入力のスケルトンを生成</span></span>
+<span id="cb16-2"><a href="#cb16-2"></a><span class="ex">aws</span> ecs register-task-definition --generate-cli-skeleton input</span></code></pre></div>
+<p>かなり多くのキーを持った JSON が生成されますが、最低限必要なものに絞ればそれほどのボリュームはありません。 CLI ドキュメントのサンプル JSON を引用します。</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb17-1"><a href="#cb17-1"></a><span class="er">//</span> <span class="er">sample</span> <span class="er">input</span> <span class="er">json</span> <span class="er">file</span> <span class="er">of</span> <span class="er">register-task-definition</span></span>
+<span id="cb17-2"><a href="#cb17-2"></a><span class="fu">{</span></span>
+<span id="cb17-3"><a href="#cb17-3"></a>    <span class="dt">&quot;containerDefinitions&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb17-4"><a href="#cb17-4"></a>        <span class="fu">{</span></span>
+<span id="cb17-5"><a href="#cb17-5"></a>            <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;sleep&quot;</span><span class="fu">,</span></span>
+<span id="cb17-6"><a href="#cb17-6"></a>            <span class="dt">&quot;image&quot;</span><span class="fu">:</span> <span class="st">&quot;busybox&quot;</span><span class="fu">,</span></span>
+<span id="cb17-7"><a href="#cb17-7"></a>            <span class="dt">&quot;cpu&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
+<span id="cb17-8"><a href="#cb17-8"></a>            <span class="dt">&quot;command&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb17-9"><a href="#cb17-9"></a>                <span class="st">&quot;sleep&quot;</span><span class="ot">,</span></span>
+<span id="cb17-10"><a href="#cb17-10"></a>                <span class="st">&quot;360&quot;</span></span>
+<span id="cb17-11"><a href="#cb17-11"></a>            <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb17-12"><a href="#cb17-12"></a>            <span class="dt">&quot;memory&quot;</span><span class="fu">:</span> <span class="dv">10</span><span class="fu">,</span></span>
+<span id="cb17-13"><a href="#cb17-13"></a>            <span class="dt">&quot;essential&quot;</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb17-14"><a href="#cb17-14"></a>        <span class="fu">}</span></span>
+<span id="cb17-15"><a href="#cb17-15"></a>    <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb17-16"><a href="#cb17-16"></a>    <span class="dt">&quot;family&quot;</span><span class="fu">:</span> <span class="st">&quot;sleep360&quot;</span></span>
+<span id="cb17-17"><a href="#cb17-17"></a><span class="fu">}</span></span></code></pre></div>
+<p>実際に Fargate タイプでサービスを稼働させる場合、上記のパラメータでは不十分ですが、足りない／不正なパラメータは CLI がバリデーションしてくれるので、試しながら覚えていきましょう。公式ドキュメントにも <a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/example_task_definitions.html">タスク定義のサンプル</a>が公開されています。参考にしてください。</p>
+<h2 id="サービスの作成-デプロイ"><span class="header-section-number">1.9</span> サービスの作成 (デプロイ)</h2>
+<p>タスク定義 “boyacky” をもとに、サービスを作成します。</p>
+<p>サービスの作成は <code>ecs create-service</code>, 更新は <code>ecs update-service</code> を利用します。</p>
+<p>入力として使用する json ファイル各パラメータの意味を確認していきましょう。</p>
+<ul>
+<li>create-service パラメータ仕様 … <a href="params-create-service.md">params-create-service.md</a></li>
+<li>使用する json の雛形 … <a href="cli-input-templates/create-service-input.json">cli-input-templates/create-service-input.json</a></li>
+</ul>
+<h3 id="サービス作成-cli-の実行"><span class="header-section-number">1.9.1</span> サービス作成 (CLI) の実行</h3>
+<p>まずは、開始条件を満たしていることを確認しましょう。</p>
+<ul>
+<li>“boyacky” という名前でタスク定義が作成されていること</li>
+<li>以下の環境変数がセットされていること</li>
+</ul>
+<div class="sourceCode" id="cb18"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1"></a><span class="co"># 環境変数のチェック</span></span>
+<span id="cb18-2"><a href="#cb18-2"></a><span class="fu">cat</span> <span class="op">&lt;&lt;EOF</span> <span class="kw">|</span> <span class="ex">column</span> -t</span>
+<span id="cb18-3"><a href="#cb18-3"></a>AWS_ACCOUNT = <span class="va">${AWS_ACCOUNT}</span></span>
+<span id="cb18-4"><a href="#cb18-4"></a>AWS_REGION = <span class="va">${AWS_REGION}</span></span>
+<span id="cb18-5"><a href="#cb18-5"></a>DOCKER_IMAGE_NAME = <span class="va">${DOCKER_IMAGE_NAME}</span></span>
+<span id="cb18-6"><a href="#cb18-6"></a>DOCKER_REMOTE_REPOSITORY = <span class="va">${DOCKER_REMOTE_REPOSITORY}</span></span>
+<span id="cb18-7"><a href="#cb18-7"></a>IMAGE_TAG = <span class="va">${IMAGE_TAG}</span></span>
+<span id="cb18-8"><a href="#cb18-8"></a>ECS_TASK_ROLE_ARN = <span class="va">${ECS_TASK_ROLE_ARN}</span></span>
+<span id="cb18-9"><a href="#cb18-9"></a>ECS_TASK_EXEXCUTION_ROLE_ARN = <span class="va">${ECS_TASK_EXEXCUTION_ROLE_ARN}</span></span>
+<span id="cb18-10"><a href="#cb18-10"></a>TASKDEF_ARN = <span class="va">${TASKDEF_ARN}</span></span>
+<span id="cb18-11"><a href="#cb18-11"></a>EOF</span></code></pre></div>
+<p>次に、サービス作成に必要な追加パラメータをセットします。 ターゲットグループ、サブネット、セキュリティグループの情報を変数にセットします。次の変数を使ってください。</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1"></a><span class="bu">export</span> <span class="va">TARGET_GROUP_ARN=</span>xxx  <span class="co"># ALB ターゲットグループのARN</span></span>
+<span id="cb19-2"><a href="#cb19-2"></a><span class="bu">export</span> <span class="va">SUBNET_1=</span>subnet-xxx  <span class="co"># デプロイ先のプライベートサブネット(1)</span></span>
+<span id="cb19-3"><a href="#cb19-3"></a><span class="bu">export</span> <span class="va">SUBNET_2=</span>subnet-xxx  <span class="co"># デプロイ先のプライベートサブネット(2)</span></span>
+<span id="cb19-4"><a href="#cb19-4"></a><span class="bu">export</span> <span class="va">TASK_SECURITY_GROUP=</span>sg-xxx  <span class="co"># タスクにアタッチするSG (&quot;boyacky-web-sg&quot; で作成されてる)</span></span></code></pre></div>
+<p>json 入力のテンプレートファイルから、実際の入力ファイルを作成します。</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1"></a><span class="ex">envsubst</span> <span class="op">&lt;</span> cli-input-templates/create-service-input.json <span class="op">&gt;</span> cli-inputs/create-service-input.json</span></code></pre></div>
+<p>生成された <em>cli-inputs/create-service-input.json</em> に、ターゲットグループ／サブネット／セキュリティグループの情報がセットされていることを確認してください。</p>
+<p>問題なければ <code>ecs create-service</code> を実行しましょう。</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1"></a><span class="ex">aws</span> ecs create-service --cli-input-json file://cli-inputs/create-service-input.json <span class="kw">|</span> <span class="fu">tee</span> cli-outputs/create-service-output.json</span></code></pre></div>
+<p>サービス作成のリクエストが正常に受け付けられれば、<a href="cli-output-samples/create-service-output.json">cli-output-samples/create-service-output.json</a> のような形式の json が戻ります。</p>
+<!-- ```bash
+# 環境変数のチェック
+cat <<EOF | column -t
+AWS_ACCOUNT = ${AWS_ACCOUNT}
+AWS_REGION = ${AWS_REGION}
+DOCKER_IMAGE_NAME = ${DOCKER_IMAGE_NAME}
+DOCKER_REMOTE_REPOSITORY = ${DOCKER_REMOTE_REPOSITORY}
+IMAGE_TAG = ${IMAGE_TAG}
+ECS_TASK_ROLE_ARN = ${ECS_TASK_ROLE_ARN}
+ECS_TASK_EXEXCUTION_ROLE_ARN = ${ECS_TASK_EXEXCUTION_ROLE_ARN}
+TASKDEF_ARN = ${TASKDEF_ARN}
+TARGET_GROUP_ARN = ${TARGET_GROUP_ARN}
+SUBNET_1 = ${SUBNET_1}
+SUBNET_2 = ${SUBNET_2}
+TASK_SECURITY_GROUP = ${TASK_SECURITY_GROUP}
+EOF
+``` -->
+<h2 id="サービスの更新"><span class="header-section-number">1.10</span> サービスの更新</h2>
+<p>ユーザーが増えたのでアプリケーションコンテナをスケールアウトすることにしました。サービスの更新によってこの対応を行います。</p>
+<p>スケールアウトはコンテナイメージの変更を伴わない変更であるため、 <code>update-service</code> コマンドの実行で完結します。</p>
+<p>Doc: <a href="https://docs.aws.amazon.com/cli/latest/reference/ecs/update-service.html">AWS CLI - aws.ecs.update-service</a></p>
+<p>基本的に引数は <code>create-service</code> で使えるものと共通していますので、詳細は省きます。ここで実行するコマンドは以下の通りです。</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1"></a><span class="ex">aws</span> ecs update-service \</span>
+<span id="cb22-2"><a href="#cb22-2"></a>  --cluster boyacky \</span>
+<span id="cb22-3"><a href="#cb22-3"></a>  --service boyacky-webapp-svc \</span>
+<span id="cb22-4"><a href="#cb22-4"></a>  --desired-count 2</span></code></pre></div>
+<p><code>cluster</code>, <code>service</code> が必須引数となります。リクエストが正常に受け付けられた場合の出力例は <a href="cli-output-samples/update-service-output.json">cli-output-samples/update-service-output.json</a> のようになります。</p>
+<h2 id="ワンショットタスクの実行"><span class="header-section-number">1.11</span> ワンショットタスクの実行</h2>
+<p>一回きりの処理（バッチなど）を実行する場合は、サービスからではなく、タスクを直接開始します。</p>
+<p>タスク実行に関わるサブコマンド (API) は <code>start-task</code>, <code>run-task</code> の2つがありますが、今回利用するのは <a href="https://docs.aws.amazon.com/cli/latest/reference/ecs/run-task.html"><code>ecs run-task</code></a> です。</p>
+<table>
+<thead>
+<tr class="header">
+<th>subcommand</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://docs.aws.amazon.com/cli/latest/reference/ecs/run-task.html">ecs run-task</a></td>
+<td>タスクを作成し、実行する</td>
+</tr>
+<tr class="even">
+<td><a href="https://docs.aws.amazon.com/cli/latest/reference/ecs/start-task.html">ecs start-task</a></td>
+<td>run-task と基本的には同じもの。タスクをどのコンテナインスタンスの上で実行するか、明示的に指定可能</td>
+</tr>
+</tbody>
+</table>
+<p>また、ECS Run Task API は結果整合です。状態の変更がただちに AWS 側のリソースに反映されるとは限らないことに留意してください。Run Task の後続処理として何某かの処理を挟む必要がある場合は、Run Task 実行後に describe-tasks を繰り返し実行し、タスクの状態を確認します (exponential backoff で、間隔の最大値は5分ほど) 。 desctibe-tasks が意図した応答を返した場合でも、後続処理の前に待機時間を挟んでおくとよいでしょう。</p>
+<p>run-task のパラメータ仕様は <a href="params-run-task.md">params-run-task.md</a>, 入力となる json の雛形は <a href="cli-input-templates/run-task-input.json">cli-input-templates/run-task-input.json</a> です。</p>
+<h3 id="タスクの実行-cli"><span class="header-section-number">1.11.1</span> タスクの実行 (CLI)</h3>
+<p>感情分析サービスの “osenchi” をバッチ実行するタスクを実装しました(osenchi.py)。このバッチは、利用者のぼやきを取得し、 Comprehend で感情分析を行い、結果を S3 に出力します。このバッチを ECS のタスクで実行してみましょう。</p>
+<p>タスク実行のために必要な環境変数をセットします。</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1"></a><span class="bu">export</span> <span class="va">EXPORT_BUCKET=</span>xxx  <span class="co"># 感情分析ジョブの出力となる S3 バケット名</span></span></code></pre></div>
+<p>環境変数がセットされていることを確認します。</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1"></a><span class="co"># 環境変数のチェック</span></span>
+<span id="cb24-2"><a href="#cb24-2"></a><span class="fu">cat</span> <span class="op">&lt;&lt;EOF</span> <span class="kw">|</span> <span class="ex">column</span> -t</span>
+<span id="cb24-3"><a href="#cb24-3"></a>AWS_ACCOUNT = <span class="va">${AWS_ACCOUNT}</span></span>
+<span id="cb24-4"><a href="#cb24-4"></a>AWS_REGION = <span class="va">${AWS_REGION}</span></span>
+<span id="cb24-5"><a href="#cb24-5"></a>DOCKER_IMAGE_NAME = <span class="va">${DOCKER_IMAGE_NAME}</span></span>
+<span id="cb24-6"><a href="#cb24-6"></a>DOCKER_REMOTE_REPOSITORY = <span class="va">${DOCKER_REMOTE_REPOSITORY}</span></span>
+<span id="cb24-7"><a href="#cb24-7"></a>IMAGE_TAG = <span class="va">${IMAGE_TAG}</span></span>
+<span id="cb24-8"><a href="#cb24-8"></a>ECS_TASK_ROLE_ARN = <span class="va">${ECS_TASK_ROLE_ARN}</span></span>
+<span id="cb24-9"><a href="#cb24-9"></a>ECS_TASK_EXEXCUTION_ROLE_ARN = <span class="va">${ECS_TASK_EXEXCUTION_ROLE_ARN}</span></span>
+<span id="cb24-10"><a href="#cb24-10"></a>TASKDEF_ARN = <span class="va">${TASKDEF_ARN}</span></span>
+<span id="cb24-11"><a href="#cb24-11"></a>TARGET_GROUP_ARN = <span class="va">${TARGET_GROUP_ARN}</span></span>
+<span id="cb24-12"><a href="#cb24-12"></a>SUBNET_1 = <span class="va">${SUBNET_1}</span></span>
+<span id="cb24-13"><a href="#cb24-13"></a>SUBNET_2 = <span class="va">${SUBNET_2}</span></span>
+<span id="cb24-14"><a href="#cb24-14"></a>TASK_SECURITY_GROUP = <span class="va">${TASK_SECURITY_GROUP}</span></span>
+<span id="cb24-15"><a href="#cb24-15"></a>EXPORT_BUCKET = <span class="va">${EXPORT_BUCKET}</span></span>
+<span id="cb24-16"><a href="#cb24-16"></a>EOF</span></code></pre></div>
+<p>入力として使用する json ファイルは <a href="cli-input-templates/run-task-input.json">cli-input-templates/run-task-input.json</a> です。この json ファイルと envsubst コマンドを使って、 CLI の入力に使用する json を生成します。</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1"></a><span class="co"># envsubst を使用して、プレースホルダに環境変数を埋め込んで出力</span></span>
+<span id="cb25-2"><a href="#cb25-2"></a><span class="ex">envsubst</span> <span class="op">&lt;</span> cli-input-templates/run-task-input.json <span class="op">&gt;</span> cli-inputs/run-task-input.json</span></code></pre></div>
+<p>生成した json ファイルを入力として、 <code>ecs run-task</code> を実行します。</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1"></a><span class="ex">aws</span> ecs run-task --cli-input-json file://cli-inputs/run-task-input.json <span class="kw">|</span> <span class="fu">tee</span> cli-outputs/run-task-output.json</span></code></pre></div>
+<p>タスク実行のリクエストが正常に受け付けられれば、<a href="cli-output-samples/run-task-output.json">cli-output-samples/run-task-output.json</a> のような形式の json が戻ります。</p>
+<h2 id="演習課題"><span class="header-section-number">1.12</span> 演習課題</h2>
+<p>Boyacky の稼働が開始され、本格的に運用を考える必要が出てきました。さしあたってアプリケーションの監視設定が何も入っていないため、まずはログ監視の導入を検討しています。</p>
+<p>当面の方針として、アプリケーションログは CloudWatch Logs に集約することにしました。サービスを更新や、必要に応じてその他の AWS 環境の設定を変更し、ログ監視の仕組みを実装してください。</p>
+<ul>
+<li>ゴール
+<ul>
+<li>アプリケーションのログを CloudWatch Logs から閲覧できること</li>
+<li>手順書のドラフトとなる情報が残るように、作業内容のメモを残す(できれば)</li>
+</ul></li>
+<li>条件
+<ul>
+<li>ECS のサービス更新に関わる作業は AWS CLI で行う</li>
+</ul></li>
+</ul>
+<p>目安： 1.0 〜 1.5h（解説含）</p>
+<h2 id="サービスの削除-アンデプロイ"><span class="header-section-number">1.13</span> サービスの削除 (アンデプロイ)</h2>
+<p>サービスを消す前に、タスクの起動数を 0 にする必要があります。</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1"></a><span class="ex">aws</span> ecs update-service \</span>
+<span id="cb27-2"><a href="#cb27-2"></a>  --service boyacky-webapp-svc \</span>
+<span id="cb27-3"><a href="#cb27-3"></a>  --cluster boyacky-cluster \</span>
+<span id="cb27-4"><a href="#cb27-4"></a>  --desired-count 0</span></code></pre></div>
+<p>サービスの停止にはしばらくかかります。<code>describe-services</code> を実行して、状態を確認してみましょう。</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1"></a><span class="ex">aws</span> ecs describe-services \</span>
+<span id="cb28-2"><a href="#cb28-2"></a>  --services boyacky-webapp-svc \</span>
+<span id="cb28-3"><a href="#cb28-3"></a>  --cluster boyacky-cluster \</span>
+<span id="cb28-4"><a href="#cb28-4"></a>  --query <span class="st">&quot;services[0] | { status: status, desiredCount: desiredCount, runningCount: runningCount }&quot;</span></span></code></pre></div>
+<p>runningCount が 0 になっていれば、サービスを削除できます。 <code>delete-service</code> を実行しましょう。</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1"></a><span class="ex">aws</span> ecs delete-service \</span>
+<span id="cb29-2"><a href="#cb29-2"></a>  --service boyacky-webapp-svc \</span>
+<span id="cb29-3"><a href="#cb29-3"></a>  --cluster boyacky-cluster</span></code></pre></div>
