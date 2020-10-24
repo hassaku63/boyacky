@@ -91,7 +91,7 @@ EC2 - Load Balancing - Target Groups の画面に移動し、ターゲットグ�
 
 - Target Type: IP Address
 - Target group name: tg-boyacky-app
-- Protocol/Port: HTTP, 80
+- Protocol/Port: HTTP, 8080
 - VPC: スタックで作成したVPCを選択 (boyacky-vpc)
 - Health checks: デフォルト値
 
