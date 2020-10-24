@@ -101,7 +101,7 @@ EC2 - Load Balancing - Target Groups の画面に移動し、ターゲットグ�
 
 EC2 - Load Balancing - Load balancers の画面に移動し、 "boyacky-alb" のリスナーを登録します。
 
-- Protocol/Port: HTTP, 8080
+- Protocol/Port: HTTP, 80
 - Action
   - Forward to: tg-boyacky-app (wight=1)
 
@@ -200,11 +200,9 @@ aws ecs create-cluster \
 
 ### タスク実行ロール
 
-- Choose a use case: Elastic Container Service
-- Select your use case: EC2 Role for Elastic Container Service (Allows EC2 instances in an ECS cluster to access ECS.)
-- Attached permissions policies
-  - `AmazonEC2ContainerServiceforEC2Role` のポリシーがあること
-- Role Name: 任意 (例: boyacky-ecs-instance-role)
+IAM ロールに `ecsTaskExecutionRole` という名前のロールがあれば、作業不要
+
+※ なければ [Amazon ECS task execution IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html) の記述通りに作成
 
 ### タスクロール
 
@@ -254,7 +252,7 @@ export ECS_TASK_ROLE_ARN=  # タスクロールの ARN
 export ECS_TASK_EXEXCUTION_ROLE_ARN=  # タスク実行ロール (コンテナインスタンスが利用する方のロール) の ARN
 ```
 
-`--cli-input-json` の入力に使用する json を生成します。
+`--cli-input-json` の入力に使用する json を生成します。カレントディレクトリを `handson/` に移動して、以降の作業を実施してください。
 
 ```bash
 # envsubst を使用して、プレースホルダに環境変数を埋め込んで出力
@@ -378,7 +376,7 @@ EOF
 export TARGET_GROUP_ARN=xxx  # ALB ターゲットグループのARN
 export SUBNET_1=subnet-xxx  # デプロイ先のプライベートサブネット(1)
 export SUBNET_2=subnet-xxx  # デプロイ先のプライベートサブネット(2)
-export TASK_SECURITY_GROUP=sg-xxx  # タスクにアタッチするSG
+export TASK_SECURITY_GROUP=sg-xxx  # タスクにアタッチするSG ("boyacky-web-sg" で作成されてる)
 ```
 
 json 入力のテンプレートファイルから、実際の入力ファイルを作成します。
