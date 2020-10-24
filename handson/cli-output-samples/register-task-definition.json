@@ -1,0 +1,86 @@
+{
+    "taskDefinition": {
+        "taskDefinitionArn": "arn:aws:ecs:ap-northeast-1:123456789012:task-definition/boyacky:8",
+        "containerDefinitions": [
+            {
+                "name": "boyacky-webapp",
+                "image": "123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:20201018-121025",
+                "cpu": 0,
+                "memoryReservation": 400,
+                "portMappings": [
+                    {
+                        "containerPort": 8000,
+                        "hostPort": 8000,
+                        "protocol": "tcp"
+                    }
+                ],
+                "essential": true,
+                "environment": [
+                    {
+                        "name": "BOYACKY_ENV",
+                        "value": "dev"
+                    }
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "privileged": false
+            }
+        ],
+        "family": "boyacky",
+        "taskRoleArn": "arn:aws:iam::123456789012:role/boyacky-task-role",
+        "executionRoleArn": "arn:aws:iam::123456789012:role/boyacky-task-exec-role",
+        "networkMode": "awsvpc",
+        "revision": 8,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {
+                "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+            },
+            {
+                "name": "ecs.capability.execution-role-awslogs"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.ecr-auth"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.task-iam-role"
+            },
+            {
+                "name": "ecs.capability.execution-role-ecr-pull"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+            },
+            {
+                "name": "ecs.capability.task-eni"
+            }
+        ],
+        "placementConstraints": [],
+        "compatibilities": [
+            "EC2",
+            "FARGATE"
+        ],
+        "requiresCompatibilities": [
+            "FARGATE"
+        ],
+        "cpu": "256",
+        "memory": "512"
+    },
+    "tags": [
+        {
+            "key": "env",
+            "value": "dev"
+        },
+        {
+            "key": "app",
+            "value": "boyacky"
+        }
+    ]
+}

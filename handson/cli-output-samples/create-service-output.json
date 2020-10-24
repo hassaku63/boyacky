@@ -1,0 +1,74 @@
+{
+    "service": {
+        "serviceArn": "arn:aws:ecs:ap-northeast-1:1234578901234:service/boyacky-cluster/boyacky-webapp-svc",
+        "serviceName": "boyacky-webapp-svc",
+        "clusterArn": "arn:aws:ecs:ap-northeast-1:1234578901234:cluster/boyacky-cluster",
+        "loadBalancers": [
+            {
+                "targetGroupArn": "arn:aws:elasticloadbalancing:ap-northeast-1:1234578901234:targetgroup/ecs-boyack-boyacky-web-service/d6bfcfe16ada77d5",
+                "containerName": "boyacky-webapp",
+                "containerPort": 8080
+            }
+        ],
+        "serviceRegistries": [],
+        "status": "ACTIVE",
+        "desiredCount": 1,
+        "runningCount": 0,
+        "pendingCount": 0,
+        "launchType": "FARGATE",
+        "platformVersion": "1.3.0",
+        "taskDefinition": "arn:aws:ecs:ap-northeast-1:1234578901234:task-definition/boyacky:15",
+        "deploymentConfiguration": {
+            "maximumPercent": 200,
+            "minimumHealthyPercent": 100
+        },
+        "deployments": [
+            {
+                "id": "ecs-svc/xxxxxxxxxxxxxxxxxxxxx",
+                "status": "PRIMARY",
+                "taskDefinition": "arn:aws:ecs:ap-northeast-1:1234578901234:task-definition/boyacky:15",
+                "desiredCount": 1,
+                "pendingCount": 0,
+                "runningCount": 0,
+                "createdAt": 1000000000.000,
+                "updatedAt": 1000000000.000,
+                "launchType": "FARGATE",
+                "platformVersion": "1.4.0",
+                "networkConfiguration": {
+                    "awsvpcConfiguration": {
+                        "subnets": [
+                            "subnet-xxxxxxxxxxxxxxxxxx",
+                            "subnet-xxxxxxxxxxxxxxxxxx"
+                        ],
+                        "securityGroups": [
+                            "sg-xxxxxxxxxxxxxxxxxx"
+                        ],
+                        "assignPublicIp": "DISABLED"
+                    }
+                }
+            }
+        ],
+        "roleArn": "arn:aws:iam::1234578901234:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+        "events": [],
+        "createdAt": 1603226985.284,
+        "placementConstraints": [],
+        "placementStrategy": [],
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": [
+                    "subnet-xxxxxxxxxxxxxxxxx",
+                    "subnet-xxxxxxxxxxxxxxxxx"
+                ],
+                "securityGroups": [
+                    "sg-xxxxxxxxxxxxxxxxx"
+                ],
+                "assignPublicIp": "DISABLED"
+            }
+        },
+        "healthCheckGracePeriodSeconds": 0,
+        "schedulingStrategy": "REPLICA",
+        "createdBy": "arn:aws:iam::1234578901234:user/administrator",
+        "enableECSManagedTags": true,
+        "propagateTags": "TASK_DEFINITION"
+    }
+}

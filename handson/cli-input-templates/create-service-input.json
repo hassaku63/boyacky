@@ -1,0 +1,38 @@
+{
+    "cluster": "boyacky-cluster",
+    "serviceName": "boyacky-webapp-svc",
+    "taskDefinition": "${TASKDEF_ARN}",
+    "loadBalancers": [
+        {
+            "targetGroupArn": "${TARGET_GROUP_ARN}",
+            "containerName": "boyacky-webapp",
+            "containerPort": 8080
+        }
+    ],
+    "desiredCount": 1,
+    "launchType": "FARGATE",
+    "platformVersion": "1.3.0",
+    "deploymentConfiguration": {
+        "maximumPercent": 200,
+        "minimumHealthyPercent": 100
+    },
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "subnets": [
+                "${SUBNET_1}",
+                "${SUBNET_2}"
+            ],
+            "securityGroups": [
+                "${TASK_SECURITY_GROUP}"
+            ],
+            "assignPublicIp": "DISABLED"
+        }
+    },
+    "healthCheckGracePeriodSeconds": 0,
+    "schedulingStrategy": "REPLICA",
+    "deploymentController": {
+        "type": "ECS"
+    },
+    "enableECSManagedTags": true,
+    "propagateTags": "TASK_DEFINITION"
+}

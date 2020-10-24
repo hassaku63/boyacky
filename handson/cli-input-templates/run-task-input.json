@@ -1,0 +1,43 @@
+{
+    "cluster": "boyacky-cluster",
+    "count": 1,
+    "enableECSManagedTags": true,
+    "group": "run-task test",
+    "launchType": "FARGATE",
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "subnets": [
+                "${SUBNET_1}",
+                "${SUBNET_2}"
+            ],
+            "securityGroups": [
+                "${TASK_SECURITY_GROUP}"
+            ],
+            "assignPublicIp": "DISABLED"
+        }
+    },
+    "overrides": {
+        "containerOverrides": [
+            {
+                "name": "boyacky-webapp",
+                "command": [
+                    "-m",
+                    "osenchi"
+                ],
+                "environment": [
+                    {
+                        "name": "EXPORT_BUCKET",
+                        "value": "${EXPORT_BUCKET}"
+                    }
+                ]
+            }
+        ],
+        "cpu": "256",
+        "executionRoleArn": "${ECS_TASK_EXEXCUTION_ROLE_ARN}",
+        "memory": "512",
+        "taskRoleArn": "${ECS_TASK_ROLE_ARN}"
+    },
+    "platformVersion": "1.3.0",
+    "propagateTags": "TASK_DEFINITION",
+    "taskDefinition": "${TASKDEF_ARN}"
+}

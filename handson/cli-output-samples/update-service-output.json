@@ -1,0 +1,110 @@
+{
+    "service": {
+        "serviceArn": "arn:aws:ecs:us-east-2:xxxxxxxxxxxxxx:service/boyacky/boyacky-webapp-svc",
+        "serviceName": "boyacky-webapp-svc",
+        "clusterArn": "arn:aws:ecs:us-east-2:xxxxxxxxxxxxxx:cluster/boyacky",
+        "loadBalancers": [
+            {
+                "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-2:xxxxxxxxxxxxxx:targetgroup/boyacky-app/aa0025de7b44928f",
+                "containerName": "boyacky-webapp",
+                "containerPort": 8080
+            }
+        ],
+        "serviceRegistries": [],
+        "status": "ACTIVE",
+        "desiredCount": 1,
+        "runningCount": 2,
+        "pendingCount": 0,
+        "launchType": "FARGATE",
+        "platformVersion": "1.3.0",
+        "taskDefinition": "arn:aws:ecs:us-east-2:xxxxxxxxxxxxxx:task-definition/boyacky:1",
+        "deploymentConfiguration": {
+            "maximumPercent": 200,
+            "minimumHealthyPercent": 100
+        },
+        "deployments": [
+            {
+                "id": "ecs-svc/6978212021628042766",
+                "status": "PRIMARY",
+                "taskDefinition": "arn:aws:ecs:us-east-2:xxxxxxxxxxxxxx:task-definition/boyacky:1",
+                "desiredCount": 1,
+                "pendingCount": 0,
+                "runningCount": 2,
+                "createdAt": 1000000000.000,
+                "updatedAt": 1000000001.000,
+                "launchType": "FARGATE",
+                "platformVersion": "1.3.0",
+                "networkConfiguration": {
+                    "awsvpcConfiguration": {
+                        "subnets": [
+                            "subnet-xxxxxxxxxxxxxxxxx",
+                            "subnet-xxxxxxxxxxxxxxxxx"
+                        ],
+                        "securityGroups": [
+                            "sg-xxxxxxxxxxxxxxxxx"
+                        ],
+                        "assignPublicIp": "DISABLED"
+                    }
+                }
+            }
+        ],
+        "roleArn": "arn:aws:iam::xxxxxxxxxxxxxx:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+        "events": [
+            {
+                "id": "ef156ea9-8193-4d7d-bee5-c7c23937ee71",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) has reached a steady state."
+            },
+            {
+                "id": "722b4bfb-5681-4f62-8d45-6aaa3dbb0e49",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-2:xxxxxxxxxxxxxx:targetgroup/boyacky-app/aa0025de7b44928f)"
+            },
+            {
+                "id": "819782ea-8286-405c-8591-d9f67f5926cb",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) has started 1 tasks: (task 8532a98958c44b569408e28cc58aafce)."
+            },
+            {
+                "id": "2877b405-e493-490b-aa84-39f6ec4c292b",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) has reached a steady state."
+            },
+            {
+                "id": "833bb837-00e0-4059-a047-67a8a33d860c",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) has reached a steady state."
+            },
+            {
+                "id": "565d4f06-9ef7-44c0-aaef-422ed86bec8b",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-2:xxxxxxxxxxxxxx:targetgroup/boyacky-app/aa0025de7b44928f)"
+            },
+            {
+                "id": "13946c08-60f6-4d66-93f5-0780a3bf2d58",
+                "createdAt": 1000000000.000,
+                "message": "(service boyacky-webapp-svc) has started 1 tasks: (task 1a6afee95d2a4ec88af9b5a74e3e3a8d)."
+            }
+        ],
+        "createdAt": 1000000000.000,
+        "placementConstraints": [],
+        "placementStrategy": [],
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": [
+                    "subnet-xxxxxxxxxxxxxxxxx",
+                    "subnet-xxxxxxxxxxxxxxxxx"
+                ],
+                "securityGroups": [
+                    "sg-xxxxxxxxxxxxxxxxx"
+                ],
+                "assignPublicIp": "DISABLED"
+            }
+        },
+        "healthCheckGracePeriodSeconds": 0,
+        "schedulingStrategy": "REPLICA",
+        "createdBy": "arn:aws:iam::xxxxxxxxxxxxxx:user/administrator",
+        "enableECSManagedTags": true,
+        "propagateTags": "TASK_DEFINITION"
+    }
+}

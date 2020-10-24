@@ -1,0 +1,81 @@
+{
+    "failures": [], 
+    "tasks": [
+        {
+            "availabilityZone": "ap-northeast-1", 
+            "group": "run-task test", 
+            "attachments": [
+                {
+                    "status": "PRECREATED", 
+                    "type": "ElasticNetworkInterface", 
+                    "id": "f7795f78-06cb-4a76-a6c8-58141f2bbf00", 
+                    "details": [
+                        {
+                            "name": "subnetId",
+                            "value": "subnet-xxxxxxxxxxxxxxxxx"
+                        }
+                    ]
+                }
+            ], 
+            "tags": [
+                {
+                    "value": "boyacky", 
+                    "key": "app"
+                }, 
+                {
+                    "value": "dev", 
+                    "key": "env"
+                }, 
+                {
+                    "value": "boyacky-cluster", 
+                    "key": "aws:ecs:clusterName"
+                }
+            ], 
+            "overrides": {
+                "inferenceAcceleratorOverrides": [], 
+                "executionRoleArn": "arn:aws:iam::xxxxxxxxxxxx:role/ecsTaskExecutionRole", 
+                "containerOverrides": [
+                    {
+                        "environment": [
+                            {
+                                "name": "EXPORT_BUCKET", 
+                                "value": "<bucket-name>"
+                            }
+                        ], 
+                        "command": [
+                            "-m", 
+                            "osenchi"
+                        ], 
+                        "name": "boyacky-webapp"
+                    }
+                ], 
+                "memory": "512", 
+                "taskRoleArn": "arn:aws:iam::xxxxxxxxxxxx:role/boyacky-task-role", 
+                "cpu": "256"
+            }, 
+            "lastStatus": "PROVISIONING", 
+            "taskArn": "arn:aws:ecs:ap-northeast-1:xxxxxxxxxxxx:task/boyacky/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+            "launchType": "FARGATE", 
+            "containers": [
+                {
+                    "memoryReservation": "400", 
+                    "containerArn": "arn:aws:ecs:ap-northeast-1:xxxxxxxxxxxx:container/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", 
+                    "taskArn": "arn:aws:ecs:ap-northeast-1:xxxxxxxxxxxx:task/boyacky/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "name": "boyacky-webapp", 
+                    "image": "xxxxxxxxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/boyacky/web-app:20201023-130013", 
+                    "lastStatus": "PENDING", 
+                    "cpu": "0", 
+                    "networkInterfaces": []
+                }
+            ], 
+            "version": 1, 
+            "memory": "512", 
+            "platformVersion": "1.3.0", 
+            "desiredStatus": "RUNNING", 
+            "taskDefinitionArn": "arn:aws:ecs:ap-northeast-1:xxxxxxxxxxxx:task-definition/boyacky:1", 
+            "cpu": "256", 
+            "createdAt": 1603462395.866, 
+            "clusterArn": "arn:aws:ecs:ap-northeast-1:xxxxxxxxxxxx:cluster/boyacky"
+        }
+    ]
+}
